@@ -36,7 +36,7 @@ jobs:
           echo "TARGET_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - if: github.event_name != 'workflow_dispatch'
         run: echo "TARGET_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
