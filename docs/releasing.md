@@ -34,7 +34,7 @@
    - creates the GitHub release with notes taken from the matching `CHANGELOG.md` section,
    - publishes to npm if the repository has an `NPM_TOKEN` secret.
 
-To re-run a release for an existing tag, use **Actions → Release → Run workflow** and enter the tag.
+**Without pushing a tag:** run **Actions → Release → Run workflow** on `main` and enter the tag (for example `v0.2.0`). The workflow runs the same checks and creates the tag on that commit. Entering an existing tag re-runs its release.
 
 ## Demo deployment
 

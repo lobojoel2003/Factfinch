@@ -1,14 +1,16 @@
 name: Release
 
-# Push a tag like v0.1.0 to publish a GitHub release. The tag must match the
-# version in packages/factfinch/package.json and have a CHANGELOG.md section.
+# Push a tag like v0.1.0 to publish a GitHub release. Or run this workflow
+# by hand on a branch with a tag name: if the tag doesn't exist yet, it is
+# created on the commit being built. Either way the tag must match the version
+# in packages/factfinch/package.json and have a CHANGELOG.md section.
 on:
   push:
     tags: ["v*.*.*"]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to (re)release, e.g. v0.1.0"
+        description: "Tag to release, e.g. v0.1.0 (created on this branch's commit if missing)"
         required: true
 
 permissions:
@@ -24,7 +26,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+      - name: Use the existing tag, if there is one
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git checkout -q "refs/tags/$TAG"
+          fi
+          echo "TARGET_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - if: github.event_name != 'workflow_dispatch'
+        run: echo "TARGET_SHA=$GITHUB_SHA" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -69,13 +80,14 @@ jobs:
           {
             echo ""
             echo "---"
-            echo "Build ${{ github.run_number }} · commit ${GITHUB_SHA::12}"
+            echo "Build ${{ github.run_number }} · commit ${TARGET_SHA::12}"
           } >> release/NOTES.md
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
+          target_commitish: ${{ env.TARGET_SHA }}
           name: Factfinch ${{ env.TAG }}
           body_path: release/NOTES.md
           prerelease: ${{ contains(env.TAG, '-') }}
