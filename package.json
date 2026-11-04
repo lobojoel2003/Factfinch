@@ -1,0 +1,46 @@
+{
+  "name": "factfinch-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plain-language interview engine inspired by the IRS Fact Graph: rules as data, ask only what's still needed, explain every result.",
+  "license": "Apache-2.0",
+  "author": "lobojoel2003",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lobojoel2003/Factfinch.git"
+  },
+  "homepage": "https://lobojoel2003.github.io/Factfinch/",
+  "bugs": "https://github.com/lobojoel2003/Factfinch/issues",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "stamp": "node scripts/stamp-build.mjs",
+    "build": "npm run stamp && npm run build -w factfinch && npm run build -w @factfinch/demo",
+    "build:lib": "npm run stamp && npm run build -w factfinch",
+    "dev": "npm run stamp && npm run build -w factfinch && npm run dev -w @factfinch/demo",
+    "test": "npm run stamp && npm run test -w factfinch",
+    "test:coverage": "npm run stamp && npm run test:coverage -w factfinch",
+    "typecheck": "npm run stamp && npm run typecheck -w factfinch && npm run typecheck -w @factfinch/demo",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "validate:rules": "npm run build:lib && node packages/factfinch/dist/cli.js validate packages/factfinch/rules/us-eitc-ctc-2025.json && node packages/factfinch/dist/cli.js test packages/factfinch/rules/us-eitc-ctc-2025.json packages/factfinch/rules/us-eitc-ctc-2025.cases.json",
+    "version:set": "node scripts/set-version.mjs",
+    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run validate:rules"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.6.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0"
+  }
+}

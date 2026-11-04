@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.tgz
+.DS_Store
+.vite/
+packages/factfinch/src/build-info.ts
+apps/demo/src/build-info.json
+release/
