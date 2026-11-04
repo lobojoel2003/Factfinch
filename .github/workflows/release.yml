@@ -1,0 +1,98 @@
+name: Release
+
+# Push a tag like v0.1.0 to publish a GitHub release. The tag must match the
+# version in packages/factfinch/package.json and have a CHANGELOG.md section.
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)release, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      FACTFINCH_BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Check tag matches package version
+        run: |
+          VERSION=$(node -p "require('./packages/factfinch/package.json').version")
+          if [ "v$VERSION" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match package version v$VERSION"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - run: npm ci
+      - run: npm run ci
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+
+      - name: Package release assets
+        run: |
+          mkdir -p release
+          npm pack -w factfinch --pack-destination release
+          (cd apps/demo/dist && zip -qr "../../../release/factfinch-demo-$VERSION.zip" .)
+          cp packages/factfinch/rules/us-eitc-ctc-2025.json release/
+          cp packages/factfinch/rules/us-eitc-ctc-2025.cases.json release/
+          (cd release && sha256sum * > SHA256SUMS.txt)
+          ls -l release
+
+      - name: Write release notes from CHANGELOG.md
+        run: |
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release/NOTES.md
+          if [ ! -s release/NOTES.md ]; then
+            echo "::error::CHANGELOG.md has no section for $VERSION"
+            exit 1
+          fi
+          {
+            echo ""
+            echo "---"
+            echo "Build ${{ github.run_number }} · commit ${GITHUB_SHA::12}"
+          } >> release/NOTES.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: Factfinch ${{ env.TAG }}
+          body_path: release/NOTES.md
+          prerelease: ${{ contains(env.TAG, '-') }}
+          files: |
+            release/*.tgz
+            release/*.zip
+            release/*.json
+            release/SHA256SUMS.txt
+
+      - name: Publish to npm (when NPM_TOKEN is set)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN secret not set; skipping npm publish."
+            exit 0
+          fi
+          TAG_FLAG=""
+          case "$VERSION" in *-*) TAG_FLAG="--tag next" ;; esac
+          npm publish -w factfinch --provenance --access public $TAG_FLAG

@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:coverage
+      - run: npm run validate:rules
+      - name: Upload coverage
+        if: matrix.node == 22
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: packages/factfinch/coverage
+          retention-days: 14
+
+  build:
+    name: Build library and demo
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      FACTFINCH_BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Smoke-test the CLI
+        run: |
+          node packages/factfinch/dist/cli.js --version
+          node packages/factfinch/dist/cli.js test packages/factfinch/rules/us-eitc-ctc-2025.json packages/factfinch/rules/us-eitc-ctc-2025.cases.json
+      - name: Pack the library
+        run: npm pack -w factfinch --pack-destination release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: factfinch-build-${{ github.run_number }}
+          path: |
+            release/*.tgz
+            apps/demo/dist
+          retention-days: 14
