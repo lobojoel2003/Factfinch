@@ -38,7 +38,7 @@ jobs:
       - if: steps.pages.outcome != 'success'
         run: echo "::warning::GitHub Pages is not enabled for this repository. Enable it in Settings -> Pages (Source - GitHub Actions) to deploy the demo."
       - if: steps.pages.outcome == 'success'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: apps/demo/dist
     outputs:
