@@ -1,0 +1,1571 @@
+{
+  "$schema": "../schema/factfinch-rules.schema.json",
+  "factfinch": 1,
+  "id": "us-eitc-ctc-2025",
+  "title": "EITC and Child Tax Credit checker (tax year 2025)",
+  "version": "2025.1.0",
+  "description": "Answer plain-language questions to see whether you may qualify for the federal Earned Income Tax Credit, the Child Tax Credit, and the credit for other dependents for tax year 2025, and roughly how much.",
+  "disclaimer": "This is an estimate for information only, not tax advice and not a tax return. It covers common situations and simplifies some rules. Check IRS.gov or a free VITA tax-help site before you file.",
+  "sources": [
+    {
+      "title": "IRS Rev. Proc. 2024-40 (2025 EITC amounts)",
+      "url": "https://www.irs.gov/pub/irs-drop/rp-24-40.pdf"
+    },
+    {
+      "title": "IRS Publication 596, Earned Income Credit",
+      "url": "https://www.irs.gov/publications/p596"
+    },
+    {
+      "title": "Schedule 8812 instructions (Child Tax Credit)",
+      "url": "https://www.irs.gov/forms-pubs/about-schedule-8812-form-1040"
+    },
+    {
+      "title": "Public Law 119-21 (2025 reconciliation act), section 70104: Child Tax Credit",
+      "url": "https://www.congress.gov/bill/119th-congress/house-bill/1"
+    }
+  ],
+  "constants": {
+    "taxYear": 2025,
+    "eitcInvestmentIncomeLimit": 11950,
+    "eitcNoChildMinAge": 25,
+    "eitcNoChildMaxAge": 64,
+    "eitcTableRowWidth": 50,
+    "ctcPerChild": 2200,
+    "actcPerChild": 1700,
+    "actcRate": 0.15,
+    "actcEarnedIncomeFloor": 2500,
+    "odcPerDependent": 500,
+    "ctcPhaseoutOther": 200000,
+    "ctcPhaseoutJoint": 400000,
+    "ctcPhaseoutStep": 1000,
+    "ctcPhaseoutPerStep": 50
+  },
+  "tables": {
+    "eitcCreditRate": {
+      "0": 0.0765,
+      "1": 0.34,
+      "2": 0.4,
+      "3": 0.45
+    },
+    "eitcMaxCredit": {
+      "0": 649,
+      "1": 4328,
+      "2": 7152,
+      "3": 8046
+    },
+    "eitcPhaseoutRate": {
+      "0": 0.0765,
+      "1": 0.1598,
+      "2": 0.2106,
+      "3": 0.2106
+    },
+    "eitcPhaseoutStartOther": {
+      "0": 10620,
+      "1": 23350,
+      "2": 23350,
+      "3": 23350
+    },
+    "eitcPhaseoutStartJoint": {
+      "0": 17730,
+      "1": 30470,
+      "2": 30470,
+      "3": 30470
+    }
+  },
+  "facts": {
+    "/filingStatus": {
+      "type": "enum",
+      "label": "Filing status",
+      "question": {
+        "section": "About you",
+        "prompt": "Which filing status will you use on your 2025 tax return?",
+        "help": "Your filing status depends mostly on whether you were married on December 31, 2025. If you're not sure, the IRS Interactive Tax Assistant can help you pick."
+      },
+      "options": [
+        {
+          "value": "single",
+          "label": "Single",
+          "help": "Not married at the end of 2025."
+        },
+        {
+          "value": "head_of_household",
+          "label": "Head of household",
+          "help": "Not married, and you paid more than half the cost of keeping up a home for a qualifying person."
+        },
+        {
+          "value": "married_joint",
+          "label": "Married filing jointly",
+          "help": "Married, and you and your spouse file one return together."
+        },
+        {
+          "value": "married_separate",
+          "label": "Married filing separately",
+          "help": "Married, and you each file your own return."
+        },
+        {
+          "value": "qualifying_surviving_spouse",
+          "label": "Qualifying surviving spouse",
+          "help": "Your spouse died in 2023 or 2024, you didn't remarry, and you have a dependent child."
+        }
+      ]
+    },
+    "/livedApartFromSpouse": {
+      "type": "boolean",
+      "label": "Lived apart from your spouse for the last 6 months of 2025",
+      "question": {
+        "section": "About you",
+        "prompt": "Did you live apart from your spouse for the last 6 months of 2025, or are you legally separated?",
+        "help": "This matters only for the Earned Income Tax Credit when you file separately."
+      }
+    },
+    "/you/claimedAsDependent": {
+      "type": "boolean",
+      "label": "Someone else can claim you as a dependent",
+      "question": {
+        "section": "About you",
+        "prompt": "Can someone else claim you as a dependent on their 2025 tax return?",
+        "help": "For example, a parent you live with who pays most of your expenses. Answer yes if someone could claim you, even if they don't."
+      }
+    },
+    "/you/hasSsn": {
+      "type": "boolean",
+      "label": "You have a Social Security number valid for work",
+      "question": {
+        "section": "About you",
+        "prompt": "Do you have a Social Security number that is valid for work?",
+        "help": "It must be issued by the due date of your return. An ITIN doesn't count. A card that says \"Valid for work only with DHS authorization\" does count."
+      }
+    },
+    "/spouse/hasSsn": {
+      "type": "boolean",
+      "label": "Your spouse has a Social Security number valid for work",
+      "question": {
+        "section": "About you",
+        "prompt": "Does your spouse have a Social Security number that is valid for work?",
+        "help": "It must be issued by the due date of your return. An ITIN doesn't count."
+      }
+    },
+    "/you/age": {
+      "type": "integer",
+      "min": 0,
+      "max": 130,
+      "label": "Your age at the end of 2025",
+      "question": {
+        "section": "About you",
+        "prompt": "How old were you on December 31, 2025?",
+        "placeholder": "Age in years"
+      }
+    },
+    "/spouse/age": {
+      "type": "integer",
+      "min": 0,
+      "max": 130,
+      "label": "Your spouse's age at the end of 2025",
+      "question": {
+        "section": "About you",
+        "prompt": "How old was your spouse on December 31, 2025?",
+        "placeholder": "Age in years"
+      }
+    },
+    "/you/citizenOrResident": {
+      "type": "boolean",
+      "label": "U.S. citizen or resident alien all year",
+      "question": {
+        "section": "About you",
+        "prompt": "Were you a U.S. citizen or resident alien for all of 2025?",
+        "help": "A resident alien has a green card or meets the IRS substantial presence test (generally, in the U.S. at least 183 days counting part of the 2 prior years)."
+      }
+    },
+    "/children": {
+      "type": "collection",
+      "label": "Children and relatives",
+      "itemName": "name",
+      "maxItems": 20,
+      "question": {
+        "section": "Your household",
+        "prompt": "Add each child or young relative who lived with you in 2025.",
+        "help": "Include sons and daughters (including adopted), stepchildren, foster children, brothers and sisters, and their children — like grandchildren, nieces and nephews. If there's no one to add, continue with nobody listed.",
+        "addLabel": "Add a child",
+        "itemNoun": "child"
+      }
+    },
+    "/children/*/name": {
+      "type": "string",
+      "maxLength": 60,
+      "label": "Name",
+      "question": {
+        "section": "Your household",
+        "prompt": "What is this child's first name?",
+        "placeholder": "First name"
+      }
+    },
+    "/children/*/relationship": {
+      "type": "enum",
+      "label": "{{item}}'s relationship to you",
+      "question": {
+        "section": "Your household",
+        "prompt": "How is {{item}} related to you?"
+      },
+      "options": [
+        {
+          "value": "son_daughter",
+          "label": "Son or daughter",
+          "help": "Including adopted children."
+        },
+        {
+          "value": "stepchild",
+          "label": "Stepchild"
+        },
+        {
+          "value": "foster",
+          "label": "Foster child",
+          "help": "Placed with you by an authorized agency or a court."
+        },
+        {
+          "value": "sibling",
+          "label": "Brother or sister",
+          "help": "Including half and step siblings."
+        },
+        {
+          "value": "grandchild",
+          "label": "Grandchild"
+        },
+        {
+          "value": "niece_nephew",
+          "label": "Niece or nephew"
+        },
+        {
+          "value": "other",
+          "label": "Other relative or not related",
+          "help": "For example a cousin, a parent, or a friend's child."
+        }
+      ]
+    },
+    "/children/*/age": {
+      "type": "integer",
+      "min": 0,
+      "max": 130,
+      "label": "{{item}}'s age at the end of 2025",
+      "question": {
+        "section": "Your household",
+        "prompt": "How old was {{item}} on December 31, 2025?",
+        "help": "Enter 0 if {{item}} was born in 2025.",
+        "placeholder": "Age in years"
+      }
+    },
+    "/children/*/fullTimeStudent": {
+      "type": "boolean",
+      "label": "{{item}} was a full-time student",
+      "question": {
+        "section": "Your household",
+        "prompt": "Was {{item}} a full-time student for at least 5 months of 2025?",
+        "help": "The months don't have to be in a row. Online-only schools may not count."
+      }
+    },
+    "/children/*/disabled": {
+      "type": "boolean",
+      "label": "{{item}} is permanently and totally disabled",
+      "question": {
+        "section": "Your household",
+        "prompt": "Is {{item}} permanently and totally disabled?",
+        "help": "A doctor has determined {{item}} can't do any substantial work because of a physical or mental condition expected to last at least a year, or to lead to death."
+      }
+    },
+    "/children/*/livedWithYou": {
+      "type": "boolean",
+      "label": "{{item}} lived with you for more than half of 2025",
+      "question": {
+        "section": "Your household",
+        "prompt": "Did {{item}} live with you for more than half of 2025?",
+        "help": "Time away at school, on vacation, for medical care or in juvenile detention counts as living with you. A child born or who died in 2025 counts if they lived with you the whole time they were alive."
+      }
+    },
+    "/children/*/jointReturn": {
+      "type": "boolean",
+      "label": "{{item}} is filing a joint return",
+      "question": {
+        "section": "Your household",
+        "prompt": "Is {{item}} married and filing a joint return for 2025?",
+        "help": "Answer no if {{item}} and their spouse are filing jointly only to get back tax that was withheld."
+      }
+    },
+    "/children/*/claimedByOther": {
+      "type": "boolean",
+      "label": "Someone else will claim {{item}}",
+      "question": {
+        "section": "Your household",
+        "prompt": "Will someone else, such as {{item}}'s other parent, claim {{item}} on their 2025 return?",
+        "help": "Only one person can claim a child for these credits. If more than one person could, the IRS tie-breaker rules usually favor the parent {{item}} lived with longest."
+      }
+    },
+    "/children/*/supportsSelf": {
+      "type": "boolean",
+      "label": "{{item}} paid for more than half of their own support",
+      "question": {
+        "section": "Your household",
+        "prompt": "Did {{item}} pay for more than half of their own living expenses in 2025?",
+        "help": "Count only money {{item}} spent on their own support, like housing, food and clothing. Money you or others spent doesn't count."
+      }
+    },
+    "/children/*/citizen": {
+      "type": "boolean",
+      "label": "{{item}} is a U.S. citizen, national or resident alien",
+      "question": {
+        "section": "Your household",
+        "prompt": "Is {{item}} a U.S. citizen, U.S. national, or U.S. resident alien?",
+        "help": "Children born in the U.S. are citizens."
+      }
+    },
+    "/children/*/hasSsn": {
+      "type": "boolean",
+      "label": "{{item}} has a Social Security number valid for work",
+      "question": {
+        "section": "Your household",
+        "prompt": "Does {{item}} have a Social Security number that is valid for work?",
+        "help": "It must be issued by the due date of your return. An ITIN or ATIN doesn't count for the Child Tax Credit or the EITC, but {{item}} may still count for the credit for other dependents."
+      }
+    },
+    "/income/wages": {
+      "type": "dollar",
+      "min": 0,
+      "max": 100000000,
+      "label": "Pay from jobs",
+      "question": {
+        "section": "Income",
+        "prompt": "How much did you earn from jobs in 2025, before taxes?",
+        "help": "Add up box 1 of every W-2. Include tips. If you're filing jointly, include your spouse's pay. Enter 0 if none.",
+        "placeholder": "0"
+      }
+    },
+    "/income/hasSelfEmployment": {
+      "type": "boolean",
+      "label": "Had self-employment income",
+      "question": {
+        "section": "Income",
+        "prompt": "Did you work for yourself in 2025 — for example freelancing, gig work, or running a business?",
+        "help": "Include your spouse's self-employment if you're filing jointly."
+      }
+    },
+    "/income/selfEmployment": {
+      "type": "dollar",
+      "min": -100000000,
+      "max": 100000000,
+      "label": "Net self-employment earnings",
+      "question": {
+        "section": "Income",
+        "prompt": "What were your net earnings from self-employment in 2025?",
+        "help": "Your profit after business expenses, minus the deductible half of self-employment tax (Schedule SE). Enter a negative number for a loss.",
+        "placeholder": "0"
+      }
+    },
+    "/income/investment": {
+      "type": "dollar",
+      "min": 0,
+      "max": 100000000,
+      "label": "Investment income",
+      "question": {
+        "section": "Income",
+        "prompt": "How much investment income did you have in 2025?",
+        "help": "Interest (including tax-exempt interest), dividends, capital gains, and net rental or royalty income. Enter 0 if none.",
+        "placeholder": "0"
+      }
+    },
+    "/income/hasOther": {
+      "type": "boolean",
+      "label": "Had other taxable income",
+      "question": {
+        "section": "Income",
+        "prompt": "Did you have any other taxable income in 2025?",
+        "help": "For example unemployment benefits, taxable retirement or pension payments, taxable Social Security, or alimony from an agreement made before 2019. Don't count child support."
+      }
+    },
+    "/income/other": {
+      "type": "dollar",
+      "min": 0,
+      "max": 100000000,
+      "label": "Other taxable income",
+      "question": {
+        "section": "Income",
+        "prompt": "How much other taxable income did you have in 2025?",
+        "help": "Don't include pay from work, self-employment or investment income — you've already told us about those.",
+        "placeholder": "0"
+      }
+    },
+    "/you/usHome": {
+      "type": "boolean",
+      "label": "Your main home was in the U.S. for more than half of 2025",
+      "question": {
+        "section": "Income",
+        "prompt": "Was your main home in the United States for more than half of 2025?",
+        "help": "The 50 states and Washington, D.C. Military members stationed outside the U.S. on extended active duty count as living in the U.S."
+      }
+    },
+    "/isMarriedJoint": {
+      "type": "boolean",
+      "derive": {
+        "eq": [
+          {
+            "fact": "/filingStatus"
+          },
+          "married_joint"
+        ]
+      }
+    },
+    "/notADependent": {
+      "type": "boolean",
+      "label": "No one else can claim you as a dependent",
+      "derive": {
+        "not": {
+          "fact": "/you/claimedAsDependent"
+        }
+      },
+      "explain": {
+        "false": "Someone else can claim you as a dependent. People who can be claimed as a dependent can't take these credits."
+      }
+    },
+    "/children/*/isYounger": {
+      "type": "boolean",
+      "derive": {
+        "or": [
+          {
+            "lt": [
+              {
+                "fact": "./age"
+              },
+              {
+                "fact": "/you/age"
+              }
+            ]
+          },
+          {
+            "and": [
+              {
+                "fact": "/isMarriedJoint"
+              },
+              {
+                "lt": [
+                  {
+                    "fact": "./age"
+                  },
+                  {
+                    "fact": "/spouse/age"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "explain": {
+        "false": "{{item}} isn't younger than you (or your spouse, if filing jointly)."
+      }
+    },
+    "/children/*/meetsRelationship": {
+      "type": "boolean",
+      "derive": {
+        "in": [
+          {
+            "fact": "./relationship"
+          },
+          ["son_daughter", "stepchild", "foster", "sibling", "grandchild", "niece_nephew"]
+        ]
+      },
+      "explain": {
+        "true": "{{item}} is your {{./relationship|lower}}, which is a qualifying relationship.",
+        "false": "{{item}}'s relationship to you isn't a qualifying one. A qualifying child must be your child, stepchild, foster child, brother or sister, or a descendant of one of them."
+      }
+    },
+    "/children/*/meetsAge": {
+      "type": "boolean",
+      "derive": {
+        "or": [
+          {
+            "and": [
+              {
+                "lt": [
+                  {
+                    "fact": "./age"
+                  },
+                  19
+                ]
+              },
+              {
+                "fact": "./isYounger"
+              }
+            ]
+          },
+          {
+            "and": [
+              {
+                "fact": "./fullTimeStudent"
+              },
+              {
+                "lt": [
+                  {
+                    "fact": "./age"
+                  },
+                  24
+                ]
+              },
+              {
+                "fact": "./isYounger"
+              }
+            ]
+          },
+          {
+            "fact": "./disabled"
+          }
+        ]
+      },
+      "explain": {
+        "true": "{{item}} meets the age test.",
+        "false": "{{item}} doesn't meet the age test. A qualifying child must be younger than you and under 19, or under 24 and a full-time student — or be permanently and totally disabled at any age."
+      }
+    },
+    "/children/*/meetsJointReturn": {
+      "type": "boolean",
+      "derive": {
+        "or": [
+          {
+            "lt": [
+              {
+                "fact": "./age"
+              },
+              18
+            ]
+          },
+          {
+            "not": {
+              "fact": "./jointReturn"
+            }
+          }
+        ]
+      },
+      "notes": "Simplification: children under 18 are assumed not to file a joint return.",
+      "explain": {
+        "false": "{{item}} is filing a joint return, so {{item}} can't be your qualifying child."
+      }
+    },
+    "/children/*/isQualifyingChild": {
+      "type": "boolean",
+      "derive": {
+        "and": [
+          {
+            "fact": "./meetsRelationship"
+          },
+          {
+            "fact": "./meetsAge"
+          },
+          {
+            "fact": "./livedWithYou"
+          },
+          {
+            "fact": "./meetsJointReturn"
+          },
+          {
+            "not": {
+              "fact": "./claimedByOther"
+            }
+          }
+        ]
+      },
+      "explain": {
+        "true": "{{item}} is your qualifying child.",
+        "false": "{{item}} isn't your qualifying child."
+      }
+    },
+    "/children/*/isEitcChild": {
+      "type": "boolean",
+      "derive": {
+        "and": [
+          {
+            "fact": "./isQualifyingChild"
+          },
+          {
+            "fact": "./hasSsn"
+          },
+          {
+            "fact": "/you/usHome"
+          }
+        ]
+      },
+      "explain": {
+        "true": "{{item}} counts toward your Earned Income Tax Credit.",
+        "false": "{{item}} doesn't count toward your Earned Income Tax Credit."
+      }
+    },
+    "/children/*/isDependent": {
+      "type": "boolean",
+      "derive": {
+        "and": [
+          {
+            "fact": "./isQualifyingChild"
+          },
+          {
+            "not": {
+              "fact": "./supportsSelf"
+            }
+          },
+          {
+            "fact": "./citizen"
+          }
+        ]
+      },
+      "explain": {
+        "false": "{{item}} can't be your dependent."
+      }
+    },
+    "/children/*/isCtcChild": {
+      "type": "boolean",
+      "derive": {
+        "and": [
+          {
+            "fact": "./isDependent"
+          },
+          {
+            "lt": [
+              {
+                "fact": "./age"
+              },
+              17
+            ]
+          },
+          {
+            "fact": "./hasSsn"
+          }
+        ]
+      },
+      "explain": {
+        "true": "{{item}} qualifies for the {{const:ctcPerChild|dollar}} Child Tax Credit.",
+        "false": "{{item}} doesn't qualify for the Child Tax Credit. The child must be under 17 at the end of the year, be your dependent, and have a Social Security number valid for work."
+      }
+    },
+    "/children/*/isOtherDependent": {
+      "type": "boolean",
+      "derive": {
+        "and": [
+          {
+            "fact": "./isDependent"
+          },
+          {
+            "not": {
+              "fact": "./isCtcChild"
+            }
+          }
+        ]
+      },
+      "explain": {
+        "true": "{{item}} qualifies for the {{const:odcPerDependent|dollar}} credit for other dependents."
+      }
+    },
+    "/income/selfEmploymentNet": {
+      "type": "dollar",
+      "derive": {
+        "if": [
+          {
+            "fact": "/income/hasSelfEmployment"
+          },
+          {
+            "fact": "/income/selfEmployment"
+          },
+          0
+        ]
+      }
+    },
+    "/income/otherNet": {
+      "type": "dollar",
+      "derive": {
+        "if": [
+          {
+            "fact": "/income/hasOther"
+          },
+          {
+            "fact": "/income/other"
+          },
+          0
+        ]
+      }
+    },
+    "/income/earned": {
+      "type": "dollar",
+      "label": "Earned income",
+      "derive": {
+        "max": [
+          0,
+          {
+            "add": [
+              {
+                "fact": "/income/wages"
+              },
+              {
+                "fact": "/income/selfEmploymentNet"
+              }
+            ]
+          }
+        ]
+      },
+      "explain": {
+        "known": "Your earned income (pay from work plus self-employment) is {{/income/earned}}.",
+        "zero": "You have no earned income from work in 2025."
+      }
+    },
+    "/income/agi": {
+      "type": "dollar",
+      "label": "Estimated adjusted gross income",
+      "derive": {
+        "add": [
+          {
+            "fact": "/income/wages"
+          },
+          {
+            "fact": "/income/selfEmploymentNet"
+          },
+          {
+            "fact": "/income/investment"
+          },
+          {
+            "fact": "/income/otherNet"
+          }
+        ]
+      },
+      "notes": "Estimate: ignores above-the-line adjustments such as student loan interest or IRA contributions.",
+      "explain": {
+        "known": "Your estimated adjusted gross income (AGI) is {{/income/agi}}."
+      }
+    },
+    "/eitc/qualifyingChildren": {
+      "type": "integer",
+      "label": "Children who count for the EITC",
+      "derive": {
+        "count": {
+          "in": "/children",
+          "where": {
+            "fact": "./isEitcChild"
+          }
+        }
+      },
+      "explain": {
+        "known": "Children who count toward your EITC: {{/eitc/qualifyingChildren}}.",
+        "zero": "No children count toward your EITC, so the rules for workers without a qualifying child apply."
+      }
+    },
+    "/eitc/tableColumn": {
+      "type": "integer",
+      "derive": {
+        "min": [
+          {
+            "fact": "/eitc/qualifyingChildren"
+          },
+          3
+        ]
+      }
+    },
+    "/eitc/ssnRule": {
+      "type": "boolean",
+      "derive": {
+        "and": [
+          {
+            "fact": "/you/hasSsn"
+          },
+          {
+            "or": [
+              {
+                "not": {
+                  "fact": "/isMarriedJoint"
+                }
+              },
+              {
+                "fact": "/spouse/hasSsn"
+              }
+            ]
+          }
+        ]
+      },
+      "explain": {
+        "false": "To claim the EITC, you (and your spouse, if filing jointly) need a Social Security number valid for work."
+      }
+    },
+    "/eitc/residencyRule": {
+      "type": "boolean",
+      "derive": {
+        "or": [
+          {
+            "fact": "/isMarriedJoint"
+          },
+          {
+            "fact": "/you/citizenOrResident"
+          }
+        ]
+      },
+      "notes": "Married couples filing jointly with a nonresident spouse must elect to treat the spouse as a resident, so a joint return satisfies this rule.",
+      "explain": {
+        "false": "To claim the EITC, you must be a U.S. citizen or resident alien for all of 2025."
+      }
+    },
+    "/eitc/filingStatusRule": {
+      "type": "boolean",
+      "derive": {
+        "or": [
+          {
+            "neq": [
+              {
+                "fact": "/filingStatus"
+              },
+              "married_separate"
+            ]
+          },
+          {
+            "and": [
+              {
+                "fact": "/livedApartFromSpouse"
+              },
+              {
+                "gt": [
+                  {
+                    "fact": "/eitc/qualifyingChildren"
+                  },
+                  0
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "explain": {
+        "false": "When married filing separately, you can claim the EITC only if you lived apart from your spouse for the last 6 months of 2025 (or are legally separated) and have a qualifying child."
+      }
+    },
+    "/eitc/hasEarnedIncome": {
+      "type": "boolean",
+      "derive": {
+        "gt": [
+          {
+            "fact": "/income/earned"
+          },
+          0
+        ]
+      },
+      "explain": {
+        "false": "The EITC is for people with income from work, and you didn't have any in 2025."
+      }
+    },
+    "/eitc/investmentRule": {
+      "type": "boolean",
+      "derive": {
+        "lte": [
+          {
+            "fact": "/income/investment"
+          },
+          {
+            "const": "eitcInvestmentIncomeLimit"
+          }
+        ]
+      },
+      "explain": {
+        "false": "Your investment income ({{/income/investment}}) is over the {{const:eitcInvestmentIncomeLimit|dollar}} limit for the EITC."
+      }
+    },
+    "/eitc/noChildAgeRule": {
+      "type": "boolean",
+      "derive": {
+        "or": [
+          {
+            "and": [
+              {
+                "gte": [
+                  {
+                    "fact": "/you/age"
+                  },
+                  {
+                    "const": "eitcNoChildMinAge"
+                  }
+                ]
+              },
+              {
+                "lte": [
+                  {
+                    "fact": "/you/age"
+                  },
+                  {
+                    "const": "eitcNoChildMaxAge"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "and": [
+              {
+                "fact": "/isMarriedJoint"
+              },
+              {
+                "gte": [
+                  {
+                    "fact": "/spouse/age"
+                  },
+                  {
+                    "const": "eitcNoChildMinAge"
+                  }
+                ]
+              },
+              {
+                "lte": [
+                  {
+                    "fact": "/spouse/age"
+                  },
+                  {
+                    "const": "eitcNoChildMaxAge"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "explain": {
+        "true": "You (or your spouse) are between {{const:eitcNoChildMinAge}} and {{const:eitcNoChildMaxAge}}, as required without a qualifying child.",
+        "false": "Without a qualifying child, you (or your spouse, if filing jointly) must be between {{const:eitcNoChildMinAge}} and {{const:eitcNoChildMaxAge}} at the end of 2025."
+      }
+    },
+    "/eitc/childOrWorkerRule": {
+      "type": "boolean",
+      "derive": {
+        "or": [
+          {
+            "gt": [
+              {
+                "fact": "/eitc/qualifyingChildren"
+              },
+              0
+            ]
+          },
+          {
+            "and": [
+              {
+                "fact": "/eitc/noChildAgeRule"
+              },
+              {
+                "fact": "/you/usHome"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "/eitc/eligible": {
+      "type": "boolean",
+      "label": "Eligible for the EITC",
+      "derive": {
+        "and": [
+          {
+            "fact": "/notADependent"
+          },
+          {
+            "fact": "/eitc/ssnRule"
+          },
+          {
+            "fact": "/eitc/residencyRule"
+          },
+          {
+            "fact": "/eitc/filingStatusRule"
+          },
+          {
+            "fact": "/eitc/hasEarnedIncome"
+          },
+          {
+            "fact": "/eitc/childOrWorkerRule"
+          },
+          {
+            "fact": "/eitc/investmentRule"
+          }
+        ]
+      },
+      "explain": {
+        "true": "You meet the rules for the Earned Income Tax Credit.",
+        "false": "You don't meet the rules for the Earned Income Tax Credit."
+      }
+    },
+    "/eitc/maxCredit": {
+      "type": "dollar",
+      "derive": {
+        "lookup": {
+          "table": "eitcMaxCredit",
+          "key": {
+            "fact": "/eitc/tableColumn"
+          }
+        }
+      },
+      "explain": {
+        "known": "For your number of qualifying children, the most the EITC can be is {{/eitc/maxCredit}}."
+      }
+    },
+    "/eitc/phaseoutStart": {
+      "type": "dollar",
+      "derive": {
+        "if": [
+          {
+            "fact": "/isMarriedJoint"
+          },
+          {
+            "lookup": {
+              "table": "eitcPhaseoutStartJoint",
+              "key": {
+                "fact": "/eitc/tableColumn"
+              }
+            }
+          },
+          {
+            "lookup": {
+              "table": "eitcPhaseoutStartOther",
+              "key": {
+                "fact": "/eitc/tableColumn"
+              }
+            }
+          }
+        ]
+      },
+      "explain": {
+        "known": "The credit gets smaller once income passes {{/eitc/phaseoutStart}}."
+      }
+    },
+    "/eitc/earnedRowMidpoint": {
+      "type": "dollar",
+      "derive": {
+        "if": [
+          {
+            "gt": [
+              {
+                "fact": "/income/earned"
+              },
+              0
+            ]
+          },
+          {
+            "add": [
+              {
+                "mul": [
+                  {
+                    "floor": {
+                      "div": [
+                        {
+                          "fact": "/income/earned"
+                        },
+                        {
+                          "const": "eitcTableRowWidth"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "const": "eitcTableRowWidth"
+                  }
+                ]
+              },
+              {
+                "div": [
+                  {
+                    "const": "eitcTableRowWidth"
+                  },
+                  2
+                ]
+              }
+            ]
+          },
+          0
+        ]
+      }
+    },
+    "/eitc/agiRowMidpoint": {
+      "type": "dollar",
+      "derive": {
+        "if": [
+          {
+            "gt": [
+              {
+                "fact": "/income/agi"
+              },
+              0
+            ]
+          },
+          {
+            "add": [
+              {
+                "mul": [
+                  {
+                    "floor": {
+                      "div": [
+                        {
+                          "fact": "/income/agi"
+                        },
+                        {
+                          "const": "eitcTableRowWidth"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "const": "eitcTableRowWidth"
+                  }
+                ]
+              },
+              {
+                "div": [
+                  {
+                    "const": "eitcTableRowWidth"
+                  },
+                  2
+                ]
+              }
+            ]
+          },
+          0
+        ]
+      }
+    },
+    "/eitc/creditFromEarned": {
+      "type": "dollar",
+      "derive": {
+        "round": {
+          "max": [
+            0,
+            {
+              "sub": [
+                {
+                  "min": [
+                    {
+                      "mul": [
+                        {
+                          "lookup": {
+                            "table": "eitcCreditRate",
+                            "key": {
+                              "fact": "/eitc/tableColumn"
+                            }
+                          }
+                        },
+                        {
+                          "fact": "/eitc/earnedRowMidpoint"
+                        }
+                      ]
+                    },
+                    {
+                      "fact": "/eitc/maxCredit"
+                    }
+                  ]
+                },
+                {
+                  "mul": [
+                    {
+                      "lookup": {
+                        "table": "eitcPhaseoutRate",
+                        "key": {
+                          "fact": "/eitc/tableColumn"
+                        }
+                      }
+                    },
+                    {
+                      "max": [
+                        0,
+                        {
+                          "sub": [
+                            {
+                              "fact": "/eitc/earnedRowMidpoint"
+                            },
+                            {
+                              "fact": "/eitc/phaseoutStart"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "/eitc/creditFromAgi": {
+      "type": "dollar",
+      "derive": {
+        "round": {
+          "max": [
+            0,
+            {
+              "sub": [
+                {
+                  "min": [
+                    {
+                      "mul": [
+                        {
+                          "lookup": {
+                            "table": "eitcCreditRate",
+                            "key": {
+                              "fact": "/eitc/tableColumn"
+                            }
+                          }
+                        },
+                        {
+                          "fact": "/eitc/agiRowMidpoint"
+                        }
+                      ]
+                    },
+                    {
+                      "fact": "/eitc/maxCredit"
+                    }
+                  ]
+                },
+                {
+                  "mul": [
+                    {
+                      "lookup": {
+                        "table": "eitcPhaseoutRate",
+                        "key": {
+                          "fact": "/eitc/tableColumn"
+                        }
+                      }
+                    },
+                    {
+                      "max": [
+                        0,
+                        {
+                          "sub": [
+                            {
+                              "fact": "/eitc/agiRowMidpoint"
+                            },
+                            {
+                              "fact": "/eitc/phaseoutStart"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "/eitc/amount": {
+      "type": "dollar",
+      "label": "Earned Income Tax Credit",
+      "derive": {
+        "if": [
+          {
+            "fact": "/eitc/eligible"
+          },
+          {
+            "if": [
+              {
+                "lt": [
+                  {
+                    "fact": "/income/agi"
+                  },
+                  {
+                    "fact": "/eitc/phaseoutStart"
+                  }
+                ]
+              },
+              {
+                "fact": "/eitc/creditFromEarned"
+              },
+              {
+                "min": [
+                  {
+                    "fact": "/eitc/creditFromEarned"
+                  },
+                  {
+                    "fact": "/eitc/creditFromAgi"
+                  }
+                ]
+              }
+            ]
+          },
+          0
+        ]
+      },
+      "notes": "Follows the IRS EIC table method: the credit is figured on the midpoint of each $50 income row, using the smaller of the amounts for earned income and AGI once AGI reaches the phase-out start.",
+      "explain": {
+        "known": "Your estimated Earned Income Tax Credit is {{/eitc/amount}}. It is refundable: you get it even if you owe no tax.",
+        "zero": "You don't get the Earned Income Tax Credit."
+      }
+    },
+    "/ctc/ssnRule": {
+      "type": "boolean",
+      "derive": {
+        "or": [
+          {
+            "fact": "/you/hasSsn"
+          },
+          {
+            "and": [
+              {
+                "fact": "/isMarriedJoint"
+              },
+              {
+                "fact": "/spouse/hasSsn"
+              }
+            ]
+          }
+        ]
+      },
+      "explain": {
+        "false": "Since 2025, the Child Tax Credit requires a Social Security number valid for work for you, or for your spouse if you file jointly."
+      }
+    },
+    "/ctc/children": {
+      "type": "integer",
+      "label": "Children who qualify for the Child Tax Credit",
+      "derive": {
+        "if": [
+          {
+            "and": [
+              {
+                "fact": "/notADependent"
+              },
+              {
+                "fact": "/ctc/ssnRule"
+              }
+            ]
+          },
+          {
+            "count": {
+              "in": "/children",
+              "where": {
+                "fact": "./isCtcChild"
+              }
+            }
+          },
+          0
+        ]
+      },
+      "explain": {
+        "known": "Children who qualify for the Child Tax Credit: {{/ctc/children}}."
+      }
+    },
+    "/ctc/otherDependents": {
+      "type": "integer",
+      "label": "Dependents who qualify for the credit for other dependents",
+      "derive": {
+        "if": [
+          {
+            "fact": "/notADependent"
+          },
+          {
+            "count": {
+              "in": "/children",
+              "where": {
+                "fact": "./isOtherDependent"
+              }
+            }
+          },
+          0
+        ]
+      },
+      "explain": {
+        "known": "Dependents who qualify for the credit for other dependents: {{/ctc/otherDependents}}.",
+        "zero": ""
+      }
+    },
+    "/ctc/beforePhaseout": {
+      "type": "dollar",
+      "derive": {
+        "add": [
+          {
+            "mul": [
+              {
+                "fact": "/ctc/children"
+              },
+              {
+                "const": "ctcPerChild"
+              }
+            ]
+          },
+          {
+            "mul": [
+              {
+                "fact": "/ctc/otherDependents"
+              },
+              {
+                "const": "odcPerDependent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "/ctc/phaseoutThreshold": {
+      "type": "dollar",
+      "derive": {
+        "if": [
+          {
+            "fact": "/isMarriedJoint"
+          },
+          {
+            "const": "ctcPhaseoutJoint"
+          },
+          {
+            "const": "ctcPhaseoutOther"
+          }
+        ]
+      }
+    },
+    "/ctc/reduction": {
+      "type": "dollar",
+      "label": "Income-based reduction",
+      "derive": {
+        "mul": [
+          {
+            "const": "ctcPhaseoutPerStep"
+          },
+          {
+            "ceil": {
+              "div": [
+                {
+                  "max": [
+                    0,
+                    {
+                      "sub": [
+                        {
+                          "fact": "/income/agi"
+                        },
+                        {
+                          "fact": "/ctc/phaseoutThreshold"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "const": "ctcPhaseoutStep"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "explain": {
+        "known": "Because your income is over {{/ctc/phaseoutThreshold}}, the credit is reduced by {{/ctc/reduction}} ({{const:ctcPhaseoutPerStep|dollar}} for each {{const:ctcPhaseoutStep|dollar}} over).",
+        "zero": ""
+      }
+    },
+    "/ctc/total": {
+      "type": "dollar",
+      "label": "Child Tax Credit and credit for other dependents",
+      "derive": {
+        "if": [
+          {
+            "eq": [
+              {
+                "fact": "/ctc/beforePhaseout"
+              },
+              0
+            ]
+          },
+          0,
+          {
+            "max": [
+              0,
+              {
+                "sub": [
+                  {
+                    "fact": "/ctc/beforePhaseout"
+                  },
+                  {
+                    "fact": "/ctc/reduction"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "explain": {
+        "known": "Your estimated Child Tax Credit and credit for other dependents total {{/ctc/total}}.",
+        "zero": "You don't get the Child Tax Credit or the credit for other dependents."
+      }
+    },
+    "/ctc/refundable": {
+      "type": "dollar",
+      "label": "Refundable part (Additional Child Tax Credit)",
+      "derive": {
+        "if": [
+          {
+            "eq": [
+              {
+                "fact": "/ctc/children"
+              },
+              0
+            ]
+          },
+          0,
+          {
+            "min": [
+              {
+                "fact": "/ctc/total"
+              },
+              {
+                "mul": [
+                  {
+                    "fact": "/ctc/children"
+                  },
+                  {
+                    "const": "actcPerChild"
+                  }
+                ]
+              },
+              {
+                "max": [
+                  0,
+                  {
+                    "round": {
+                      "mul": [
+                        {
+                          "const": "actcRate"
+                        },
+                        {
+                          "sub": [
+                            {
+                              "fact": "/income/earned"
+                            },
+                            {
+                              "const": "actcEarnedIncomeFloor"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "notes": "Upper bound assuming you owe no income tax. With 3+ qualifying children, Schedule 8812's Social Security tax method may allow more.",
+      "explain": {
+        "known": "Up to {{/ctc/refundable}} of it can be paid to you as a refund even if you owe no tax (the Additional Child Tax Credit). The rest can only lower tax you owe.",
+        "zero": "None of it can be paid to you as a refund; it can only lower tax you owe."
+      }
+    }
+  },
+  "results": [
+    {
+      "fact": "/eitc/amount",
+      "label": "Earned Income Tax Credit",
+      "description": "A refundable credit for people who work and have low to moderate income."
+    },
+    {
+      "fact": "/ctc/total",
+      "label": "Child Tax Credit and credit for other dependents",
+      "description": "Up to $2,200 per child under 17, and $500 for other dependents."
+    },
+    {
+      "fact": "/ctc/refundable",
+      "label": "Refundable part of the Child Tax Credit",
+      "description": "The part you can get back even if you owe no tax (up to $1,700 per child)."
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lobojoel2003/Factfinch/schema/factfinch-cases.schema.json",
+  "title": "Factfinch known-cases file",
+  "type": "object",
+  "required": ["cases"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "rules": {
+      "type": "string",
+      "description": "The rules id these cases are for."
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "answers", "expect"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "answers": {
+            "type": "object",
+            "description": "Answers keyed by concrete path. Collections are arrays of item ids."
+          },
+          "expect": {
+            "type": "object",
+            "description": "Expected fact values keyed by concrete path."
+          },
+          "expectNotAsked": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expectAsked": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

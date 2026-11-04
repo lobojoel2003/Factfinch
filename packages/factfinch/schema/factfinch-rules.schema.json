@@ -1,0 +1,618 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lobojoel2003/Factfinch/schema/factfinch-rules.schema.json",
+  "title": "Factfinch rules file",
+  "type": "object",
+  "required": ["factfinch", "id", "title", "version", "facts", "results"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "factfinch": {
+      "const": 1,
+      "description": "Rules format version."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "disclaimer": {
+      "type": "string"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": ["title"]
+      }
+    },
+    "constants": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["number", "string", "boolean"]
+      }
+    },
+    "tables": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": ["number", "string", "boolean"]
+        }
+      }
+    },
+    "facts": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(/[A-Za-z_][A-Za-z0-9_]*|/\\*)+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/fact"
+      }
+    },
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "fact": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": ["fact", "label"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "fact": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": ["boolean", "integer", "number", "dollar", "string", "enum", "collection"]
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "question": {
+          "type": "object",
+          "required": ["prompt"],
+          "additionalProperties": false,
+          "properties": {
+            "prompt": {
+              "type": "string"
+            },
+            "help": {
+              "type": "string"
+            },
+            "section": {
+              "type": "string"
+            },
+            "trueLabel": {
+              "type": "string"
+            },
+            "falseLabel": {
+              "type": "string"
+            },
+            "placeholder": {
+              "type": "string"
+            },
+            "addLabel": {
+              "type": "string"
+            },
+            "itemNoun": {
+              "type": "string"
+            }
+          }
+        },
+        "derive": {
+          "$ref": "#/$defs/expr"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["value", "label"],
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "help": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "maxLength": {
+          "type": "integer"
+        },
+        "maxItems": {
+          "type": "integer"
+        },
+        "explain": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "true": {
+              "type": "string"
+            },
+            "false": {
+              "type": "string"
+            },
+            "zero": {
+              "type": "string"
+            },
+            "known": {
+              "type": "string"
+            }
+          }
+        },
+        "itemName": {
+          "type": "string"
+        },
+        "notes": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["question"]
+        },
+        {
+          "required": ["derive"]
+        }
+      ]
+    },
+    "expr": {
+      "anyOf": [
+        {
+          "type": ["number", "string", "boolean"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string",
+              "pattern": "^(\\.)?/"
+            }
+          },
+          "required": ["fact"],
+          "additionalProperties": false,
+          "description": "Value of another fact: absolute (/income/wages) or item-relative (./age)."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "const": {
+              "type": "string"
+            }
+          },
+          "required": ["const"],
+          "additionalProperties": false,
+          "description": "A named constant from `constants`."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "and": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 1
+            }
+          },
+          "required": ["and"],
+          "additionalProperties": false,
+          "description": "True when every part is true. False as soon as one part is false."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "or": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 1
+            }
+          },
+          "required": ["or"],
+          "additionalProperties": false,
+          "description": "True as soon as one part is true."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "not": {
+              "$ref": "#/$defs/expr"
+            }
+          },
+          "required": ["not"],
+          "additionalProperties": false,
+          "description": "Logical not."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "if": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            }
+          },
+          "required": ["if"],
+          "additionalProperties": false,
+          "description": "[condition, then, else]"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "eq": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["eq"],
+          "additionalProperties": false,
+          "description": "Equal"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "neq": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["neq"],
+          "additionalProperties": false,
+          "description": "Not equal"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "gt": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["gt"],
+          "additionalProperties": false,
+          "description": ">"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "gte": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["gte"],
+          "additionalProperties": false,
+          "description": ">="
+        },
+        {
+          "type": "object",
+          "properties": {
+            "lt": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["lt"],
+          "additionalProperties": false,
+          "description": "<"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "lte": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["lte"],
+          "additionalProperties": false,
+          "description": "<="
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sub": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["sub"],
+          "additionalProperties": false,
+          "description": "a - b"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "div": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["div"],
+          "additionalProperties": false,
+          "description": "a / b"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/expr"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": ["string", "number", "boolean"]
+                  }
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": ["in"],
+          "additionalProperties": false,
+          "description": "True when the value is in the list."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "add": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 1
+            }
+          },
+          "required": ["add"],
+          "additionalProperties": false,
+          "description": "Sum"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mul": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 1
+            }
+          },
+          "required": ["mul"],
+          "additionalProperties": false,
+          "description": "Product"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 1
+            }
+          },
+          "required": ["min"],
+          "additionalProperties": false,
+          "description": "Smallest"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "max": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/expr"
+              },
+              "minItems": 1
+            }
+          },
+          "required": ["max"],
+          "additionalProperties": false,
+          "description": "Largest"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "round": {
+              "$ref": "#/$defs/expr"
+            }
+          },
+          "required": ["round"],
+          "additionalProperties": false,
+          "description": "Round to the nearest whole number"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "floor": {
+              "$ref": "#/$defs/expr"
+            }
+          },
+          "required": ["floor"],
+          "additionalProperties": false,
+          "description": "Round down"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ceil": {
+              "$ref": "#/$defs/expr"
+            }
+          },
+          "required": ["ceil"],
+          "additionalProperties": false,
+          "description": "Round up"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string"
+                },
+                "where": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": ["in"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["count"],
+          "additionalProperties": false,
+          "description": "Count items in a collection, optionally only those matching `where`."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sum": {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string"
+                },
+                "of": {
+                  "$ref": "#/$defs/expr"
+                },
+                "where": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": ["in", "of"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["sum"],
+          "additionalProperties": false,
+          "description": "Add up `of` across a collection's items."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "lookup": {
+              "type": "object",
+              "properties": {
+                "table": {
+                  "type": "string"
+                },
+                "key": {
+                  "$ref": "#/$defs/expr"
+                },
+                "default": {
+                  "$ref": "#/$defs/expr"
+                }
+              },
+              "required": ["table", "key"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["lookup"],
+          "additionalProperties": false,
+          "description": "Read a row from a table in `tables`."
+        }
+      ]
+    }
+  }
+}
