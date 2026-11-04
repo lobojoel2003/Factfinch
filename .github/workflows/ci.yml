@@ -62,7 +62,9 @@ jobs:
           node packages/factfinch/dist/cli.js --version
           node packages/factfinch/dist/cli.js test packages/factfinch/rules/us-eitc-ctc-2025.json packages/factfinch/rules/us-eitc-ctc-2025.cases.json
       - name: Pack the library
-        run: npm pack -w factfinch --pack-destination release
+        run: |
+          mkdir -p release
+          npm pack -w factfinch --pack-destination release
       - uses: actions/upload-artifact@v4
         with:
           name: factfinch-build-${{ github.run_number }}
