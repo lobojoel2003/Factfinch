@@ -175,6 +175,81 @@ describe("answers", () => {
   });
 });
 
+describe("batch, clear and sections", () => {
+  it("notifies once for a batch of changes", () => {
+    const s = graph.createSession();
+    const fn = vi.fn();
+    s.subscribe(fn);
+    s.batch(() => {
+      s.set("/isMember", true);
+      s.set("/income", 10);
+      s.addItem("/pets", { name: "Rex" });
+    });
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(s.revision).toBe(1);
+    expect(s.value("/youngPets")).toBeUndefined();
+  });
+
+  it("undoes everything when a batch throws", () => {
+    const s = eligibleWithPets();
+    const before = s.allAnswers();
+    const fn = vi.fn();
+    s.subscribe(fn);
+    expect(() =>
+      s.batch(() => {
+        s.set("/income", 70);
+        s.removeItem("/pets", "p1");
+        s.set("/income", -5); // invalid
+      }),
+    ).toThrow(/at least 0/);
+    expect(s.allAnswers()).toEqual(before);
+    expect(s.value("/benefit")).toBe(15);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("nested batches roll back only their own changes", () => {
+    const s = graph.createSession();
+    s.batch(() => {
+      s.set("/isMember", true);
+      try {
+        s.batch(() => {
+          s.set("/income", 5);
+          throw new Error("inner");
+        });
+      } catch {
+        // ignored on purpose
+      }
+    });
+    expect(s.allAnswers()).toEqual({ "/isMember": true });
+  });
+
+  it("addItem with a name is a single change", () => {
+    const s = graph.createSession();
+    const fn = vi.fn();
+    s.subscribe(fn);
+    s.addItem("/pets", { name: "Rex" });
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("clear removes every answer", () => {
+    const s = eligibleWithPets();
+    s.clear();
+    expect(s.allAnswers()).toEqual({});
+    const fn = vi.fn();
+    s.subscribe(fn);
+    s.clear();
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("lists question sections in file order", () => {
+    expect(graph.sections()).toEqual(["About you"]);
+  });
+
+  it("says a derived fact is not known yet", () => {
+    expect(graph.createSession().display("/benefit")).toBe("(not known yet)");
+  });
+});
+
 describe("snapshots", () => {
   it("round-trips through JSON", () => {
     const s = eligibleWithPets();
@@ -190,6 +265,23 @@ describe("snapshots", () => {
       answers: { "/pets/#a/age": 2, "/pets": ["a"] },
     });
     expect(restored.value("/youngPets")).toBe(1);
+  });
+  it("restores all or nothing", () => {
+    const s = eligibleWithPets();
+    const before = s.allAnswers();
+    expect(() =>
+      s.restore({
+        factfinch: 1,
+        rules: { id: "tiny", version: "1.0.0" },
+        answers: { "/color": "red", "/income": "lots" as never },
+      }),
+    ).toThrow(/Expected a number/);
+    expect(s.allAnswers()).toEqual(before);
+  });
+  it("rejects unknown snapshot formats", () => {
+    expect(() =>
+      graph.createSession({ factfinch: 99, rules: { id: "tiny", version: "1" }, answers: {} }),
+    ).toThrow(/format 99/);
   });
   it("rejects snapshots for other rules", () => {
     expect(() =>
@@ -291,6 +383,9 @@ describe("parseAnswer", () => {
     expect(parseAnswer(q("dollar"), "$1,250.50")).toBe(1250.5);
     expect(parseAnswer(q("integer"), " 7 ")).toBe(7);
     expect(parseAnswer(q("number"), "-3")).toBe(-3);
+    expect(parseAnswer(q("number"), ".5")).toBe(0.5);
+    expect(parseAnswer(q("dollar"), "12.")).toBe(12);
+    expect(() => parseAnswer(q("number"), "1.2.3")).toThrow(/number/);
     expect(() => parseAnswer(q("number"), "abc")).toThrow(/number/);
   });
   it("parses enum choices by number, value or label", () => {

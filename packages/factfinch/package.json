@@ -1,6 +1,6 @@
 {
   "name": "factfinch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Plain-language interview engine: describe rules as data, ask only the questions still needed, explain every result. Inspired by the IRS Direct File Fact Graph.",
   "license": "Apache-2.0",
   "author": "lobojoel2003",
@@ -61,7 +61,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "prepack": "node -e \"require('fs').copyFileSync('../../LICENSE','LICENSE');require('fs').copyFileSync('../../README.md','README.md')\""
+    "prepack": "node ../../scripts/prepare-package.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

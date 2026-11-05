@@ -1,5 +1,5 @@
 import type { RulesIssue } from "./errors.js";
-import { itemContextOf, resolveRef, toDefinitionPath, segments } from "./paths.js";
+import { itemContextOf, resolveRef, segments, toDefinitionPath } from "./paths.js";
 import { templateRefs } from "./template.js";
 import { OPERATORS, RULES_FORMAT_VERSION } from "./types.js";
 import type { FactDef, RulesFile } from "./types.js";
@@ -186,6 +186,10 @@ export function validateRules(input: unknown): RulesIssue[] {
       add(where, "fact reference must be a string");
       return undefined;
     }
+    if (ref.includes("*")) {
+      add(where, `"${ref}" means every item; use ./name for this item, or count/sum`);
+      return undefined;
+    }
     const resolved = resolveRef(ref, ctx);
     if (!resolved) {
       add(where, `"${ref}" must start with / (or ./ inside a collection item)`);
@@ -195,15 +199,6 @@ export function validateRules(input: unknown): RulesIssue[] {
     if (!defs.has(defPath)) {
       add(where, `no fact named ${defPath}`);
       return undefined;
-    }
-    // A top-level fact can't reach into one specific item without an aggregate.
-    if (defPath.includes("*") && !ctx) {
-      add(where, `${defPath} belongs to a collection item; use count/sum to read it`);
-    } else if (ctx && defPath.includes("*")) {
-      const ownCtx = itemContextOf(defPath);
-      if (ownCtx && ctx !== ownCtx && !ctx.startsWith(`${ownCtx}/`)) {
-        add(where, `${defPath} is not reachable from item ${ctx}; use count/sum`);
-      }
     }
     return defPath;
   }

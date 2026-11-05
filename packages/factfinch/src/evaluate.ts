@@ -41,7 +41,7 @@ const EPSILON = 1e-9;
 
 export interface EvaluationContext {
   rules: RulesFile;
-  defs: Map<string, FactDef>;
+  defs: ReadonlyMap<string, FactDef>;
   answers: ReadonlyMap<string, Value>;
 }
 

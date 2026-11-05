@@ -13,6 +13,8 @@ import type { Value } from "./types.js";
 export interface TestCase {
   name: string;
   description?: string;
+  /** Free-form labels, e.g. "example" for cases a demo can offer. */
+  tags?: string[];
   /** Answers keyed by concrete path. Collections are lists of item ids. */
   answers: Record<string, Value>;
   /** Expected values for any facts, keyed by concrete path. */

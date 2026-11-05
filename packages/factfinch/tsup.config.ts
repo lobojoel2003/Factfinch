@@ -10,7 +10,7 @@ export default defineConfig([
     target: "es2022",
   },
   {
-    entry: { cli: "src/cli.ts" },
+    entry: { cli: "src/bin.ts" },
     format: ["esm"],
     sourcemap: true,
     target: "node20",

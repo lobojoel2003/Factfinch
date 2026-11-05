@@ -15,14 +15,12 @@
  * for (const r of session.results()) console.log(r.label, r.display);
  * ```
  */
-export { FactGraph, Session, validateAnswer, parseAnswer } from "./graph.js";
-export type {
-  Question,
-  Explanation,
-  ResultView,
-  SessionSnapshot,
-  ExplainOptions,
-} from "./graph.js";
+export { FactGraph } from "./graph.js";
+export { Session } from "./session.js";
+export type { Question, ResultView, SessionSnapshot } from "./session.js";
+export type { Explanation, ExplainOptions } from "./explain.js";
+export { validateAnswer, parseAnswer } from "./answers.js";
+export type { ParseTarget } from "./answers.js";
 export { validateRules } from "./validate.js";
 export { runCase, runCases } from "./testing.js";
 export type { TestCase, CasesFile, CaseResult } from "./testing.js";

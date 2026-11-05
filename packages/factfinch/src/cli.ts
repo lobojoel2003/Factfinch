@@ -1,171 +1,220 @@
-import { readFileSync } from "node:fs";
-import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
+/**
+ * The `factfinch` command-line tool. `cli()` takes its input and output as
+ * arguments so it can be tested; `bin.ts` wires it to the real terminal.
+ */
+import { parseAnswer } from "./answers.js";
 import { BUILD_INFO } from "./build-info.js";
 import { FactfinchError, RulesError } from "./errors.js";
-import { FactGraph, parseAnswer, type Explanation, type Question, type Session } from "./graph.js";
+import type { Explanation } from "./explain.js";
+import { FactGraph } from "./graph.js";
+import type { Session, SessionSnapshot } from "./session.js";
 import { runCases, type CasesFile } from "./testing.js";
 import { validateRules } from "./validate.js";
 
-const HELP = `factfinch ${BUILD_INFO.version} (build ${BUILD_INFO.build})
+export interface CliIO {
+  /** Print one line of normal output. */
+  out(line: string): void;
+  /** Print one line of error output. */
+  err(line: string): void;
+  /** Read a file as text. */
+  readFile(path: string): string;
+  /** Show a prompt and read one line; undefined when input has ended. */
+  readLine(prompt: string): Promise<string | undefined>;
+  /** Use ANSI colors. */
+  color: boolean;
+}
+
+export const HELP = `factfinch ${BUILD_INFO.version} — plain-language interview engine
 
 Usage:
-  factfinch validate <rules.json>               Check a rules file for problems
-  factfinch test <rules.json> <cases.json>      Run known cases against a rules file
-  factfinch ask <rules.json>                    Run the interview in your terminal
-  factfinch run <rules.json> <answers.json>     Print results and explanations for saved answers
-  factfinch --version                           Print version and build number
-`;
+  factfinch validate <rules.json> [--json]           Check a rules file for problems
+  factfinch test <rules.json> <cases.json> [--json]  Run known cases against a rules file
+  factfinch ask <rules.json>                         Run the interview in your terminal
+  factfinch run <rules.json> <answers.json> [--json] Results and reasons for saved answers
+  factfinch --version                                Print version and build number
+  factfinch --help                                   Show this help
 
-const color = stdout.isTTY && !process.env.NO_COLOR;
-const green = (s: string) => (color ? `\x1b[32m${s}\x1b[0m` : s);
-const red = (s: string) => (color ? `\x1b[31m${s}\x1b[0m` : s);
-const dim = (s: string) => (color ? `\x1b[2m${s}\x1b[0m` : s);
-const bold = (s: string) => (color ? `\x1b[1m${s}\x1b[0m` : s);
+<answers.json> is a snapshot saved by the demo ("Download my answers"), or a
+plain object of answers keyed by path.`;
 
-function readJson(path: string): unknown {
-  try {
-    return JSON.parse(readFileSync(path, "utf8"));
-  } catch (err) {
-    throw new Error(`Could not read ${path}: ${err instanceof Error ? err.message : String(err)}`);
-  }
-}
+class UsageError extends Error {}
 
-function printExplanation(e: Explanation, indent = ""): void {
-  const line = e.text ?? `${e.label}: ${e.display}`;
-  console.log(`${indent}${e.kind === "input" ? dim("• " + line) : "• " + line}`);
-  for (const c of e.children) printExplanation(c, indent + "  ");
-}
+/** Run the CLI. Resolves to the process exit code. */
+export async function cli(argv: string[], io: CliIO): Promise<number> {
+  const paint = (code: number) => (s: string) => (io.color ? `\x1b[${code}m${s}\x1b[0m` : s);
+  const c = { green: paint(32), red: paint(31), dim: paint(2), bold: paint(1) };
 
-function printResults(session: Session): void {
-  console.log("\n" + bold("Results"));
-  for (const r of session.results()) {
-    console.log(`\n${bold(r.label)}: ${r.display}`);
-    for (const c of r.explanation.children) printExplanation(c, "  ");
-  }
-  if (session.graph.rules.disclaimer) console.log("\n" + dim(session.graph.rules.disclaimer));
-}
+  const json = argv.includes("--json");
+  const [command, ...args] = argv.filter((a) => a !== "--json");
 
-async function ask(rulesPath: string): Promise<void> {
-  const graph = FactGraph.load(readJson(rulesPath));
-  const session = graph.createSession();
-  const rl = createInterface({ input: stdin, output: stdout, terminal: stdin.isTTY });
-  const lines = rl[Symbol.asyncIterator]();
-  const prompt = async (text: string): Promise<string> => {
-    stdout.write(text);
-    const next = await lines.next();
-    if (next.done) throw new Error("Input ended before the interview finished.");
-    if (!stdin.isTTY) stdout.write(next.value + "\n");
-    return next.value;
+  const readJson = (path: string | undefined): unknown => {
+    if (!path) throw new UsageError("Missing a file argument.");
+    let text: string;
+    try {
+      text = io.readFile(path);
+    } catch (err) {
+      throw new Error(`Could not read ${path}: ${(err as Error).message}`);
+    }
+    try {
+      return JSON.parse(text);
+    } catch (err) {
+      throw new Error(`${path} is not valid JSON: ${(err as Error).message}`);
+    }
   };
-  console.log(bold(graph.rules.title));
-  if (graph.rules.description) console.log(dim(graph.rules.description));
-  try {
-    let q: Question | undefined;
-    while ((q = session.nextQuestion())) {
-      console.log("\n" + bold(q.prompt));
-      if (q.help) console.log(dim(q.help));
-      if (q.type === "collection") {
-        const n = Number((await prompt("How many? ")).trim() || "0");
-        if (!Number.isInteger(n) || n < 0) {
-          console.log(red("Please enter a whole number."));
+
+  const printJson = (value: unknown) => io.out(JSON.stringify(value, null, 2));
+
+  const printExplanation = (e: Explanation, indent: string): void => {
+    const line = `• ${e.text ?? `${e.label}: ${e.display}`}`;
+    io.out(indent + (e.kind === "input" ? c.dim(line) : line));
+    for (const child of e.children) printExplanation(child, indent + "  ");
+  };
+
+  const printResults = (session: Session): void => {
+    io.out("");
+    io.out(c.bold("Results"));
+    for (const r of session.results()) {
+      io.out("");
+      io.out(`${c.bold(r.label)}: ${r.display}`);
+      for (const child of r.explanation.children) printExplanation(child, "  ");
+    }
+    const disclaimer = session.graph.rules.disclaimer;
+    if (disclaimer) {
+      io.out("");
+      io.out(c.dim(disclaimer));
+    }
+  };
+
+  const commands: Record<string, () => Promise<number> | number> = {
+    validate() {
+      const issues = validateRules(readJson(args[0]));
+      if (json) printJson({ valid: issues.length === 0, issues });
+      else if (issues.length === 0) io.out(c.green(`✓ ${args[0]} is valid`));
+      else for (const i of issues) io.out(c.red(`✗ ${i.where}: ${i.message}`));
+      return issues.length === 0 ? 0 : 1;
+    },
+
+    test() {
+      const graph = FactGraph.load(readJson(args[0]));
+      if (!args[1]) throw new UsageError("Missing the cases file.");
+      const results = runCases(graph, readJson(args[1]) as CasesFile);
+      const failed = results.filter((r) => !r.passed).length;
+      if (json) {
+        printJson({ passed: results.length - failed, failed, results });
+      } else {
+        for (const r of results) {
+          const mark = r.passed ? c.green("✓") : c.red("✗");
+          io.out(`${mark} ${r.name} ${c.dim(`(${r.asked.length} questions)`)}`);
+          for (const f of r.failures) io.out(c.red(`    ${f}`));
+        }
+        io.out("");
+        io.out(`${results.length - failed} passed, ${failed} failed`);
+      }
+      return failed === 0 ? 0 : 1;
+    },
+
+    async ask() {
+      const graph = FactGraph.load(readJson(args[0]));
+      const session = graph.createSession();
+      const read = async (prompt: string): Promise<string> => {
+        const line = await io.readLine(prompt);
+        if (line === undefined) throw new Error("Input ended before the interview finished.");
+        return line;
+      };
+      io.out(c.bold(graph.rules.title));
+      if (graph.rules.description) io.out(c.dim(graph.rules.description));
+
+      for (let q = session.nextQuestion(); q; q = session.nextQuestion()) {
+        io.out("");
+        io.out(c.bold(q.prompt));
+        if (q.help) io.out(c.dim(q.help));
+
+        if (q.type === "collection") {
+          const count = Number((await read("How many? ")).trim() || "0");
+          if (!Number.isInteger(count) || count < 0 || count > 50) {
+            io.out(c.red("Please enter a whole number."));
+            continue;
+          }
+          const names: string[] = [];
+          for (let i = 1; i <= count; i++) {
+            names.push(
+              q.itemName ? (await read(`Name of ${q.itemNoun ?? "item"} ${i}: `)).trim() : "",
+            );
+          }
+          const path = q.path;
+          session.batch(() => {
+            session.set(path, []);
+            for (const name of names) session.addItem(path, name ? { name } : {});
+          });
           continue;
         }
-        session.set(q.path, []);
-        for (let i = 1; i <= n; i++) {
-          const name = q.itemName
-            ? (await prompt(`Name of ${q.itemNoun ?? "item"} ${i}: `)).trim()
-            : undefined;
-          session.addItem(q.path, name ? { name } : {});
-        }
-        continue;
-      }
-      q.options?.forEach((o, i) =>
-        console.log(`  ${i + 1}. ${o.label}${o.help ? dim(" — " + o.help) : ""}`),
-      );
-      const hint = q.type === "boolean" ? ` (${q.trueLabel}/${q.falseLabel})` : "";
-      const text = await prompt(`> ${hint ? dim(hint) + " " : ""}`);
-      try {
-        session.set(q.path, parseAnswer(q, text));
-      } catch (err) {
-        console.log(red(err instanceof FactfinchError ? err.message : String(err)));
-      }
-    }
-  } finally {
-    rl.close();
-  }
-  printResults(session);
-}
 
-async function main(argv: string[]): Promise<number> {
-  const [cmd, ...args] = argv;
-  switch (cmd) {
-    case undefined:
-    case "-h":
-    case "--help":
-    case "help":
-      console.log(HELP);
-      return 0;
-    case "-v":
-    case "--version":
-      console.log(`${BUILD_INFO.version}+build.${BUILD_INFO.build} (${BUILD_INFO.commit})`);
-      return 0;
-    case "validate": {
-      if (!args[0]) break;
-      const issues = validateRules(readJson(args[0]));
-      if (issues.length === 0) {
-        console.log(green(`✓ ${args[0]} is valid`));
-        return 0;
-      }
-      for (const i of issues) console.log(red(`✗ ${i.where}: ${i.message}`));
-      return 1;
-    }
-    case "test": {
-      if (!args[0] || !args[1]) break;
-      const graph = FactGraph.load(readJson(args[0]));
-      const results = runCases(graph, readJson(args[1]) as CasesFile);
-      for (const r of results) {
-        console.log(
-          `${r.passed ? green("✓") : red("✗")} ${r.name} ${dim(`(${r.asked.length} questions)`)}`,
+        q.options?.forEach((o, i) =>
+          io.out(`  ${i + 1}. ${o.label}${o.help ? c.dim(` — ${o.help}`) : ""}`),
         );
-        for (const f of r.failures) console.log(red(`    ${f}`));
-      }
-      const failed = results.filter((r) => !r.passed).length;
-      console.log(`\n${results.length - failed} passed, ${failed} failed`);
-      return failed === 0 ? 0 : 1;
-    }
-    case "ask":
-      if (!args[0]) break;
-      await ask(args[0]);
-      return 0;
-    case "run": {
-      if (!args[0] || !args[1]) break;
-      const graph = FactGraph.load(readJson(args[0]));
-      const answers = readJson(args[1]) as Record<string, never>;
-      const session = graph.createSession({
-        factfinch: 1,
-        rules: { id: graph.id, version: graph.version },
-        answers: "answers" in answers ? answers.answers : answers,
-      });
-      const pending = session.pendingQuestions();
-      if (pending.length) {
-        console.log(bold("Still needed:"));
-        for (const q of pending) console.log(`  ${q.path}  ${dim(q.prompt)}`);
+        const hint = q.type === "boolean" ? c.dim(`(${q.trueLabel}/${q.falseLabel}) `) : "";
+        try {
+          session.set(q.path, parseAnswer(q, await read(`> ${hint}`)));
+        } catch (err) {
+          if (!(err instanceof FactfinchError)) throw err;
+          io.out(c.red(err.message.replace(/\s*\(\/[^)]*\)$/, "")));
+        }
       }
       printResults(session);
       return 0;
-    }
-  }
-  console.error(HELP);
-  return 2;
-}
+    },
 
-main(process.argv.slice(2)).then(
-  (code) => process.exit(code),
-  (err: unknown) => {
-    if (err instanceof RulesError)
-      for (const i of err.issues) console.error(red(`✗ ${i.where}: ${i.message}`));
-    else console.error(red(err instanceof Error ? err.message : String(err)));
-    process.exit(1);
-  },
-);
+    run() {
+      const graph = FactGraph.load(readJson(args[0]));
+      const file = readJson(args[1]) as Partial<SessionSnapshot> & Record<string, unknown>;
+      const answers = (file.answers ?? file) as SessionSnapshot["answers"];
+      const session = graph.createSession({
+        factfinch: 1,
+        rules: { id: file.rules?.id ?? graph.id, version: graph.version },
+        answers,
+      });
+      const pending = session.pendingQuestions();
+      if (json) {
+        printJson({
+          complete: pending.length === 0,
+          pending: pending.map((q) => ({ path: q.path, prompt: q.prompt })),
+          results: session.results(),
+        });
+        return 0;
+      }
+      if (pending.length > 0) {
+        io.out(c.bold("Still needed:"));
+        for (const q of pending) io.out(`  ${q.path}  ${c.dim(q.prompt)}`);
+      }
+      printResults(session);
+      return 0;
+    },
+  };
+
+  try {
+    if (command === undefined || command === "help" || command === "-h" || command === "--help") {
+      io.out(HELP);
+      return 0;
+    }
+    if (command === "-v" || command === "--version") {
+      io.out(`${BUILD_INFO.version}+build.${BUILD_INFO.build} (${BUILD_INFO.commit})`);
+      return 0;
+    }
+    const run = Object.hasOwn(commands, command) ? commands[command] : undefined;
+    if (!run) throw new UsageError(`Unknown command "${command}".`);
+    return await run();
+  } catch (err) {
+    if (err instanceof UsageError) {
+      io.err(c.red(err.message));
+      io.err("");
+      io.err(HELP);
+      return 2;
+    }
+    if (err instanceof RulesError) {
+      for (const i of err.issues) io.err(c.red(`✗ ${i.where}: ${i.message}`));
+    } else {
+      io.err(c.red(err instanceof Error ? err.message : String(err)));
+    }
+    return 1;
+  }
+}

@@ -84,8 +84,20 @@ describe("validateRules", () => {
       /must start with \//,
     );
     expect(issuesFor((r) => (r.facts["/eligible"].derive = { fact: "/pets/*/age" }))[0]).toMatch(
-      /use count\/sum/,
+      /means every item/,
     );
+    // Inside an item, the current item is ./age — "/pets/*/age" would never resolve.
+    expect(
+      issuesFor(
+        (r) => (r.facts["/pets/*/isYoung"].derive = { lt: [{ fact: "/pets/*/age" }, 3] }),
+      )[0],
+    ).toMatch(/use \.\/name for this item/);
+    expect(
+      issuesFor((r) => {
+        r.facts["/owner"] = { type: "string", question: { prompt: "?" } };
+        r.facts["/pets/*/isYoung"].derive = { eq: [{ fact: "/owner" }, "x"] };
+      }),
+    ).toEqual([]);
     expect(issuesFor((r) => (r.facts["/eligible"].derive = { const: "nope" }))[0]).toMatch(
       /no constant/,
     );
