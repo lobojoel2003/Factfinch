@@ -88,6 +88,7 @@ A collection is a list of items, each with its own facts. Use `*` in definition 
 - An answer to a collection is a list of item ids: `session.set("/children", ["c1", "c2"])`, or use `session.addItem("/children", { name: "Sam" })`.
 - Concrete paths name items with `#`: `/children/#c1/age`.
 - Inside an item, `./age` means "this item's age". Item facts can also read top-level facts (`/you/age`).
+- References never contain `*`: `/children/*/age` means "every child's age", which isn't one value. The validator rejects it and suggests `./age` or `count`/`sum`.
 - Top-level facts read items only through `count` and `sum`.
 - All of one item's questions are asked together, item by item.
 
@@ -160,6 +161,7 @@ A cases file lists people and the results they must get:
   "cases": [
     {
       "name": "Someone else can claim you",
+      "tags": ["example"],
       "answers": { "/you/claimedAsDependent": true },
       "expect": { "/eitc/amount": 0, "/ctc/total": 0 },
       "expectAsked": ["/you/claimedAsDependent"]
@@ -174,4 +176,4 @@ Each case runs as a full interview: the engine asks, and the case's `answers` re
 - the engine asks a question the case has no answer for (a sign of a missing answer, or of a rule asking more than it should),
 - a path in `expectNotAsked` was asked, or the order differs from `expectAsked`.
 
-Extra answers are fine — they're simply never asked for. Run cases with `npx factfinch test rules.json rules.cases.json`, or `runCases(graph, cases)` inside your own test runner.
+Extra answers are fine: they're simply never asked for. `tags` are free-form labels; the demo offers cases tagged `"example"` as sample households. Run cases with `npx factfinch test rules.json rules.cases.json`, or `runCases(graph, cases)` inside your own test runner.

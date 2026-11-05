@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" role="img" aria-labelledby="t d">
+  <title id="t">Factfinch</title>
+  <desc id="d">Plain-language interview engine: rules as data, only the questions still needed, every result explained.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f6f5c"/>
+      <stop offset="1" stop-color="#13513f"/>
+    </linearGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.6" fill="#ffffff" fill-opacity="0.07"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="360" rx="28" fill="url(#bg)"/>
+  <rect width="1280" height="360" rx="28" fill="url(#dots)"/>
+
+  <!-- A small fact graph, top right: answers flow into a result. -->
+  <g fill="none" stroke="#8fcab4" stroke-opacity="0.55" stroke-width="2.5">
+    <path d="M930 92 C990 92 1000 150 1060 150"/>
+    <path d="M930 150 L1060 150"/>
+    <path d="M930 208 C990 208 1000 150 1060 150"/>
+    <path d="M1100 150 C1140 150 1150 230 1190 230"/>
+    <path d="M930 270 C1040 270 1110 230 1190 230"/>
+  </g>
+  <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif" font-size="15" font-weight="600">
+    <g>
+      <rect x="846" y="74" width="84" height="36" rx="18" fill="#ffffff"/>
+      <text x="888" y="97" text-anchor="middle" fill="#13513f">✓ yes</text>
+    </g>
+    <g>
+      <rect x="846" y="132" width="84" height="36" rx="18" fill="#ffffff"/>
+      <text x="888" y="155" text-anchor="middle" fill="#13513f">$27,500</text>
+    </g>
+    <g>
+      <rect x="846" y="190" width="84" height="36" rx="18" fill="#ffffff" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.5" stroke-dasharray="4 4"/>
+      <text x="888" y="213" text-anchor="middle" fill="#ffffff" fill-opacity="0.75">skipped</text>
+    </g>
+    <g>
+      <rect x="846" y="252" width="84" height="36" rx="18" fill="#ffffff"/>
+      <text x="888" y="275" text-anchor="middle" fill="#13513f">1 child</text>
+    </g>
+    <circle cx="1080" cy="150" r="22" fill="#ffffff"/>
+    <text x="1080" y="156" text-anchor="middle" fill="#1f6f5c" font-size="18">✓</text>
+    <g>
+      <rect x="1150" y="206" width="104" height="48" rx="14" fill="#f2b84b"/>
+      <text x="1202" y="236" text-anchor="middle" fill="#13202a" font-size="18" font-weight="750">$5,861</text>
+    </g>
+  </g>
+
+  <!-- Logo -->
+  <g transform="translate(72 96) scale(2.6)">
+    <rect width="64" height="64" rx="15" fill="#ffffff" fill-opacity="0.12"/>
+    <g transform="translate(32 33) scale(1.12) translate(-34.5 -34)">
+      <path d="M12 46 C16 46 19 44 21 41" fill="none" stroke="#cfe9df" stroke-width="4" stroke-linecap="round"/>
+      <path d="M18 39 C18 28 26 19 37 19 C45 19 50 25 50 32 C50 42 42 49 32 49 C24 49 18 45 18 39 Z" fill="#ffffff"/>
+      <path d="M24 39 C28 33 35 31 41 34 C38 41 31 44 24 39 Z" fill="#8fcab4"/>
+      <path d="M48.5 27 L57 30.5 L48.5 34 Z" fill="#f2b84b"/>
+      <circle cx="42" cy="27.5" r="2.5" fill="#13513f"/>
+      <circle cx="43" cy="26.6" r="0.8" fill="#ffffff"/>
+    </g>
+  </g>
+
+  <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif" fill="#ffffff">
+    <text x="276" y="172" font-size="76" font-weight="800" letter-spacing="-1.5">Factfinch</text>
+    <text x="280" y="222" font-size="25" font-weight="500" fill-opacity="0.92">Plain-language interviews on a fact graph.</text>
+    <text x="280" y="266" font-size="20" fill="#cfe9df">Rules as data. Only the questions still needed.</text>
+    <text x="280" y="296" font-size="20" fill="#cfe9df">Every result explained in plain words.</text>
+  </g>
+</svg>

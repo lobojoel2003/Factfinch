@@ -34,6 +34,12 @@ See [docs/rules-format.md](docs/rules-format.md) for the format.
 - Keep the library free of runtime dependencies.
 - Note user-facing changes under `## [Unreleased]` in `CHANGELOG.md`.
 
+## Changing the demo
+
+- The demo's tests (`apps/demo/test`) drive the app the way a person would: they click buttons by their visible names and read what's on screen. Add one for any new behaviour.
+- Keep it accessible: `npm run lint` includes strict `jsx-a11y` rules, and every control needs a visible or screen-reader name.
+- If the look changes, regenerate the README images with `npm run build && npm run screenshots` (needs Playwright with Chromium, and ffmpeg for the animated walkthrough).
+
 ## Code style
 
 Prettier and ESLint are configured; `npm run format` fixes formatting.
