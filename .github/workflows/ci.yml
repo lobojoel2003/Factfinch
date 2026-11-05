@@ -22,8 +22,8 @@ jobs:
       matrix:
         node: [20, 22, 24]
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -35,7 +35,7 @@ jobs:
       - run: npm run validate:rules
       - name: Upload coverage
         if: matrix.node == 22
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: packages/factfinch/coverage
@@ -48,8 +48,8 @@ jobs:
     env:
       FACTFINCH_BUILD_NUMBER: ${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -65,7 +65,7 @@ jobs:
         run: |
           mkdir -p release
           npm pack -w factfinch --pack-destination release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: factfinch-build-${{ github.run_number }}
           path: |
