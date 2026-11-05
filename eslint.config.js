@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import globals from "globals";
 
 export default tseslint.config(
@@ -19,8 +20,12 @@ export default tseslint.config(
   },
   {
     files: ["apps/demo/**/*.{ts,tsx}"],
-    languageOptions: { globals: { ...globals.browser } },
-    plugins: { "react-hooks": reactHooks },
-    rules: reactHooks.configs.recommended.rules,
+    ...jsxA11y.flatConfigs.strict,
+    languageOptions: {
+      ...jsxA11y.flatConfigs.strict.languageOptions,
+      globals: { ...globals.browser },
+    },
+    plugins: { ...jsxA11y.flatConfigs.strict.plugins, "react-hooks": reactHooks },
+    rules: { ...jsxA11y.flatConfigs.strict.rules, ...reactHooks.configs.recommended.rules },
   },
 );
