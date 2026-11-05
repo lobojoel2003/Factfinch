@@ -25,6 +25,13 @@
           "description": {
             "type": "string"
           },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Free-form labels, e.g. \"example\" for cases a demo can offer."
+          },
           "answers": {
             "type": "object",
             "description": "Answers keyed by concrete path. Collections are arrays of item ids."

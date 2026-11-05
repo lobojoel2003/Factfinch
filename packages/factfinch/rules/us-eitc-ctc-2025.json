@@ -3,7 +3,7 @@
   "factfinch": 1,
   "id": "us-eitc-ctc-2025",
   "title": "EITC and Child Tax Credit checker (tax year 2025)",
-  "version": "2025.1.0",
+  "version": "2025.2.0",
   "description": "Answer plain-language questions to see whether you may qualify for the federal Earned Income Tax Credit, the Child Tax Credit, and the credit for other dependents for tax year 2025, and roughly how much.",
   "disclaimer": "This is an estimate for information only, not tax advice and not a tax return. It covers common situations and simplifies some rules. Check IRS.gov or a free VITA tax-help site before you file.",
   "sources": [
@@ -1548,6 +1548,43 @@
       "explain": {
         "known": "Up to {{/ctc/refundable}} of it can be paid to you as a refund even if you owe no tax (the Additional Child Tax Credit). The rest can only lower tax you owe.",
         "zero": "None of it can be paid to you as a refund; it can only lower tax you owe."
+      }
+    },
+    "/summary/totalCredits": {
+      "type": "dollar",
+      "label": "Total credits",
+      "derive": {
+        "add": [
+          {
+            "fact": "/eitc/amount"
+          },
+          {
+            "fact": "/ctc/total"
+          }
+        ]
+      },
+      "explain": {
+        "known": "In total, you may get about {{/summary/totalCredits}} in credits.",
+        "zero": "It looks like you don't qualify for these credits."
+      }
+    },
+    "/summary/refundableCredits": {
+      "type": "dollar",
+      "label": "Credits you can get as a refund",
+      "derive": {
+        "add": [
+          {
+            "fact": "/eitc/amount"
+          },
+          {
+            "fact": "/ctc/refundable"
+          }
+        ]
+      },
+      "notes": "The EITC is fully refundable; the Child Tax Credit only up to its refundable part.",
+      "explain": {
+        "known": "Up to {{/summary/refundableCredits}} of that can be paid to you as a refund, even if you owe no income tax.",
+        "zero": "None of it can be paid to you as a refund."
       }
     }
   },

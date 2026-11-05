@@ -5,6 +5,7 @@
     {
       "name": "Single worker, no children, on the plateau",
       "description": "Earned income of $9,000 is past the $8,490 earned income amount and below the $10,620 phase-out start, so the full $649 applies.",
+      "tags": ["example"],
       "answers": {
         "/filingStatus": "single",
         "/you/claimedAsDependent": false,
@@ -145,12 +146,15 @@
       "expect": {
         "/eitc/amount": 0,
         "/ctc/total": 0,
-        "/ctc/refundable": 0
+        "/ctc/refundable": 0,
+        "/summary/totalCredits": 0,
+        "/summary/refundableCredits": 0
       },
       "expectAsked": ["/you/claimedAsDependent"]
     },
     {
       "name": "Head of household, one child, $30,000",
+      "tags": ["example"],
       "answers": {
         "/filingStatus": "head_of_household",
         "/you/claimedAsDependent": false,
@@ -180,7 +184,9 @@
         "/ctc/total": 2200,
         "/ctc/refundable": 1700,
         "/eitc/qualifyingChildren": 1,
-        "/ctc/children": 1
+        "/ctc/children": 1,
+        "/summary/totalCredits": 5461,
+        "/summary/refundableCredits": 4961
       }
     },
     {
@@ -229,6 +235,7 @@
     },
     {
       "name": "Married filing jointly, three children, $45,000",
+      "tags": ["example"],
       "answers": {
         "/filingStatus": "married_joint",
         "/you/claimedAsDependent": false,
@@ -995,7 +1002,9 @@
         "/eitc/amount": 0,
         "/ctc/total": 2200,
         "/ctc/refundable": 0,
-        "/eitc/hasEarnedIncome": false
+        "/eitc/hasEarnedIncome": false,
+        "/summary/totalCredits": 2200,
+        "/summary/refundableCredits": 0
       }
     },
     {
@@ -1109,6 +1118,7 @@
     },
     {
       "name": "Mixed household: one child qualifies, one doesn't",
+      "tags": ["example"],
       "answers": {
         "/filingStatus": "head_of_household",
         "/you/claimedAsDependent": false,
@@ -1150,7 +1160,9 @@
         "/ctc/refundable": 1700,
         "/eitc/qualifyingChildren": 2,
         "/ctc/children": 1,
-        "/ctc/otherDependents": 1
+        "/ctc/otherDependents": 1,
+        "/summary/totalCredits": 8446,
+        "/summary/refundableCredits": 7446
       }
     }
   ]

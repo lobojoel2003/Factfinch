@@ -34,6 +34,8 @@ describe.each(ruleFiles)("%s", (file) => {
   it("has known cases", () => {
     expect(cases.rules).toBe(graph.id);
     expect(cases.cases.length).toBeGreaterThanOrEqual(10);
+    // The demo offers these as example households.
+    expect(cases.cases.filter((c) => c.tags?.includes("example")).length).toBeGreaterThan(0);
   });
 
   it.each(cases.cases.map((c) => [c.name, c] as const))("%s", (_name, tc) => {
